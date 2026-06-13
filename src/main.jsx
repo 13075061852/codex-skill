@@ -8,9 +8,12 @@ import {
   Brush,
   Building2,
   Check,
+  Clock,
   Copy,
   FileText,
+  Footprints,
   GraduationCap,
+  Layers,
   MessageCircle,
   Moon,
   Plane,
@@ -21,11 +24,15 @@ import {
   Sparkles,
   Star,
   Sun,
+  Tag,
   TerminalSquare,
+  Timer,
+  TrendingUp,
   Workflow,
   X,
 } from "lucide-react";
 import officialPlugins from "./data/officialPlugins.json";
+import workflowTemplates from "./data/workflowTemplates.json";
 import "./styles.css";
 
 const categoryIcons = {
@@ -648,7 +655,7 @@ function App() {
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [theme, setTheme] = useState(() => {
     const stored = window.localStorage.getItem("codex-skill.theme");
-    return stored || "dark";
+    return stored || "light";
   });
   const searchInputRef = React.useRef(null);
 
@@ -914,6 +921,15 @@ function App() {
               >
                 插件列表
               </button>
+              <button
+                aria-selected={activeTab === "workflows"}
+                className={activeTab === "workflows" ? "active" : ""}
+                onClick={() => setActiveTab("workflows")}
+                role="tab"
+                type="button"
+              >
+                工作流模板
+              </button>
             </div>
 
             <div className="tab-content">
@@ -933,6 +949,10 @@ function App() {
                     projectIdea={projectIdea}
                     setProjectIdea={handleProjectIdeaChange}
                   />
+                </div>
+              ) : activeTab === "workflows" ? (
+                <div className="tab-pane" role="tabpanel">
+                  <WorkflowTemplates />
                 </div>
               ) : (
                 <div className="tab-pane plugins-tab-pane" role="tabpanel">
@@ -993,7 +1013,11 @@ function App() {
         </div>
       </section>
       {selectedPlugin ? (
-        <PluginDetail plugin={selectedPlugin} onClose={() => setSelectedPlugin(null)} />
+        <PluginDetail
+          onClose={() => setSelectedPlugin(null)}
+          onOpenPlugin={(p) => setSelectedPlugin(p)}
+          plugin={selectedPlugin}
+        />
       ) : null}
       {analysisResult && isAnalysisModalOpen ? (
         <AiAnalysisModal
@@ -1277,9 +1301,15 @@ function PluginCard({ onOpen, plugin, index = 0 }) {
   );
 }
 
-function PluginDetail({ onClose, plugin }) {
+function PluginDetail({ onClose, onOpenPlugin, plugin }) {
   const Icon = categoryIcons[plugin.category] || Sparkles;
   const coreScenarios = getCoreScenarios(plugin);
+
+  const relatedPlugins = useMemo(() => {
+    return plugins
+      .filter((p) => p.slug !== plugin.slug && p.category === plugin.category)
+      .slice(0, 4);
+  }, [plugin]);
   return (
     <div className="detail-backdrop" role="presentation" onClick={onClose}>
       <aside
@@ -1389,14 +1419,207 @@ function PluginDetail({ onClose, plugin }) {
           </div>
         </dl>
 
-        {plugin.homepage ? (
-          <a className="detail-link" href={plugin.homepage} rel="noreferrer" target="_blank">
-            查看官方网站
-            <ArrowUpRight size={15} />
-          </a>
-        ) : null}
+        {relatedPlugins.length > 0 && (
+          <div className="detail-section">
+            <h3>同类推荐</h3>
+            <div className="related-plugins">
+              {relatedPlugins.map((rp) => {
+                const RpIcon = categoryIcons[rp.category] || Sparkles;
+                return (
+                  <button
+                    className="related-plugin-card"
+                    key={rp.slug}
+                    onClick={() => onOpenPlugin ? onOpenPlugin(rp) : onClose()}
+                    type="button"
+                  >
+                    <div className={`plugin-icon${rp.logo ? " has-logo" : " fallback-icon"}`}>
+                      {rp.logo ? <img alt="" src={rp.logo} /> : <RpIcon size={20} />}
+                    </div>
+                    <div>
+                      <strong>{rp.name}</strong>
+                      <span>{rp.shortZh}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </aside>
     </div>
+  );
+}
+
+const difficultyColors = {
+  "初级": "diff-easy",
+  "中级": "diff-medium",
+  "高级": "diff-hard",
+};
+
+function WorkflowTemplates() {
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+  const [workflowFilter, setWorkflowFilter] = useState("全部");
+
+  const allCategories = ["全部", ...new Set(workflowTemplates.map((t) => t.category))];
+
+  const filtered = workflowFilter === "全部"
+    ? workflowTemplates
+    : workflowTemplates.filter((t) => t.category === workflowFilter);
+
+  if (selectedWorkflow) {
+    return (
+      <WorkflowDetail
+        onBack={() => setSelectedWorkflow(null)}
+        template={selectedWorkflow}
+      />
+    );
+  }
+
+  return (
+    <section className="workflow-panel" aria-label="工作流模板">
+      <div className="workflow-filters">
+        {allCategories.map((cat) => (
+          <button
+            className={workflowFilter === cat ? "active" : ""}
+            key={cat}
+            onClick={() => setWorkflowFilter(cat)}
+            type="button"
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="workflow-grid">
+        {filtered.map((template, index) => (
+          <button
+            className="workflow-card"
+            key={template.id}
+            onClick={() => setSelectedWorkflow(template)}
+            style={{ animationDelay: `${index * 50}ms` }}
+            type="button"
+          >
+            <div className="workflow-card-top">
+              <span className={`workflow-difficulty ${difficultyColors[template.difficulty] || ""}`}>
+                {template.difficulty}
+              </span>
+              <span className="workflow-time">
+                <Timer size={13} />
+                {template.estimatedTime}
+              </span>
+            </div>
+            <h3>{template.title}</h3>
+            <p>{template.description}</p>
+            <div className="workflow-card-tags">
+              {template.tags.map((tag) => (
+                <span key={tag}>
+                  <Tag size={11} />
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <div className="workflow-card-foot">
+              <span>{template.steps.length} 个步骤</span>
+              <span className="workflow-arrow">
+                开始
+                <ArrowUpRight size={14} />
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WorkflowDetail({ onBack, template }) {
+  const [copiedStep, setCopiedStep] = useState(null);
+
+  const handleCopyStep = async (prompt, index) => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopiedStep(index);
+      window.setTimeout(() => setCopiedStep(null), 1500);
+    } catch {
+      setCopiedStep(null);
+    }
+  };
+
+  const handleCopyAll = async () => {
+    const allPrompts = template.steps
+      .map((step, i) => `步骤 ${i + 1}：${step.name}\n${step.prompt}`)
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(allPrompts);
+      setCopiedStep("all");
+      window.setTimeout(() => setCopiedStep(null), 1500);
+    } catch {
+      setCopiedStep(null);
+    }
+  };
+
+  return (
+    <section className="workflow-detail" aria-label={template.title}>
+      <button className="workflow-back" onClick={onBack} type="button">
+        ← 返回模板列表
+      </button>
+
+      <div className="workflow-detail-head">
+        <span className={`workflow-difficulty ${difficultyColors[template.difficulty] || ""}`}>
+          {template.difficulty}
+        </span>
+        <h2>{template.title}</h2>
+        <p>{template.description}</p>
+        <div className="workflow-detail-meta">
+          <span>
+            <Timer size={14} />
+            预计 {template.estimatedTime}
+          </span>
+          <span>
+            <Layers size={14} />
+            {template.steps.length} 个步骤
+          </span>
+          <span>
+            <Footprints size={14} />
+            {template.category}
+          </span>
+        </div>
+      </div>
+
+      <div className="workflow-detail-actions">
+        <button className="workflow-copy-all" onClick={handleCopyAll} type="button">
+          {copiedStep === "all" ? <><Check size={15} /> 已复制全部</> : <><Copy size={15} /> 复制全部提示词</>}
+        </button>
+      </div>
+
+      <div className="workflow-steps">
+        {template.steps.map((step, index) => (
+          <div className="workflow-step" key={index}>
+            <div className="workflow-step-num">{index + 1}</div>
+            <div className="workflow-step-content">
+              <h3>{step.name}</h3>
+              <div className="workflow-step-prompt">
+                <code>{step.prompt}</code>
+                <button
+                  className={`copy-btn${copiedStep === index ? " copied" : ""}`}
+                  onClick={() => handleCopyStep(step.prompt, index)}
+                  title="复制此步骤"
+                  type="button"
+                >
+                  {copiedStep === index ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+              {step.tips && (
+                <div className="workflow-step-tips">
+                  <Sparkles size={13} />
+                  <span>{step.tips}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

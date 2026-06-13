@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "sync:plugins": "node scripts/sync-official-plugins.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

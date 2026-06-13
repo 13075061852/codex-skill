@@ -1,6 +1,6 @@
-# Codex 技能指南
+# Codex Skills
 
-一个基于 React + Vite 的 Codex 官方插件与技能说明站。
+一个基于 React + Vite 的 Codex Skills 官方插件与技能说明站。
 
 ## 功能
 
@@ -16,6 +16,25 @@
 npm install
 npm run dev
 ```
+
+## DeepSeek AI 分析
+
+页面里的“AI 项目分析”支持在界面中填写 DeepSeek API Key。Key 会保存在当前浏览器的本地存储中，后续分析会自动使用。
+
+你也可以复制 `.env.example` 为 `.env.local`，作为本地开发服务的兜底配置：
+
+```bash
+DEEPSEEK_API_KEY=sk-your-deepseek-api-key
+DEEPSEEK_MODEL=deepseek-chat
+```
+
+然后重新运行：
+
+```bash
+npm run dev
+```
+
+页面会通过本地 Vite 代理调用 DeepSeek，Key 不会写死在代码里。`.env.local` 已被 `.gitignore` 排除，不会提交到 GitHub。
 
 ## 构建
 

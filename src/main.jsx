@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowUpRight,
@@ -7,9 +7,12 @@ import {
   BriefcaseBusiness,
   Brush,
   Building2,
+  Check,
+  Copy,
   FileText,
   GraduationCap,
   MessageCircle,
+  Moon,
   Plane,
   PanelLeftClose,
   PanelLeftOpen,
@@ -17,6 +20,7 @@ import {
   Shield,
   Sparkles,
   Star,
+  Sun,
   TerminalSquare,
   Workflow,
   X,
@@ -591,14 +595,41 @@ function formatAnalysisTime(value) {
   }
 }
 
+function parseHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return {};
+  const params = {};
+  for (const part of hash.split("&")) {
+    const [key, value] = part.split("=");
+    if (key) params[decodeURIComponent(key)] = decodeURIComponent(value || "");
+  }
+  return params;
+}
+
+function writeHash(params) {
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+  const newHash = parts.length ? `#${parts.join("&")}` : "";
+  if (window.location.hash !== newHash) {
+    history.replaceState(null, "", newHash || window.location.pathname);
+  }
+}
+
 function App() {
-  const [activeCategory, setActiveCategory] = useState("精选");
-  const [activeTab, setActiveTab] = useState("analysis");
-  const [query, setQuery] = useState("");
+  const [urlState, setUrlState] = useState(parseHash);
+  const [activeCategory, setActiveCategory] = useState(() => urlState.cat || "精选");
+  const [activeTab, setActiveTab] = useState(() => urlState.tab || "analysis");
+  const [query, setQuery] = useState(() => urlState.q || "");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
     window.matchMedia("(max-width: 900px)").matches,
   );
-  const [selectedPlugin, setSelectedPlugin] = useState(null);
+  const [selectedPlugin, setSelectedPlugin] = useState(() => {
+    if (urlState.plugin) {
+      return plugins.find((p) => p.slug === urlState.plugin) || null;
+    }
+    return null;
+  });
   const [projectIdea, setProjectIdea] = useState(() =>
     window.localStorage.getItem(projectIdeaStorageKey) || "",
   );
@@ -615,6 +646,23 @@ function App() {
   const [analysisError, setAnalysisError] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    const stored = window.localStorage.getItem("codex-skill.theme");
+    return stored || "dark";
+  });
+  const searchInputRef = React.useRef(null);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      window.localStorage.setItem("codex-skill.theme", next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 900px)");
@@ -628,6 +676,59 @@ function App() {
     mediaQuery.addEventListener("change", syncSidebarToViewport);
     return () => mediaQuery.removeEventListener("change", syncSidebarToViewport);
   }, []);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const params = parseHash();
+      setUrlState(params);
+      if (params.cat) setActiveCategory(params.cat);
+      if (params.tab) setActiveTab(params.tab);
+      if (params.q) setQuery(params.q);
+      if (params.plugin) {
+        const found = plugins.find((p) => p.slug === params.plugin);
+        if (found) setSelectedPlugin(found);
+      } else {
+        setSelectedPlugin(null);
+      }
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    writeHash({
+      tab: activeTab !== "analysis" ? activeTab : undefined,
+      cat: activeCategory !== "精选" ? activeCategory : undefined,
+      q: query || undefined,
+      plugin: selectedPlugin?.slug || undefined,
+    });
+  }, [activeTab, activeCategory, query, selectedPlugin]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || e.target.isContentEditable;
+
+      if (e.key === "/" && !isInput) {
+        e.preventDefault();
+        setActiveTab("plugins");
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        if (isAnalysisModalOpen) {
+          setIsAnalysisModalOpen(false);
+        } else if (selectedPlugin) {
+          setSelectedPlugin(null);
+        } else if (isInput) {
+          e.target.blur();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAnalysisModalOpen, selectedPlugin]);
 
   const visiblePlugins = useMemo(() => {
     const term = normalize(query);
@@ -765,6 +866,17 @@ function App() {
             );
           })}
         </nav>
+
+        <button
+          className="theme-toggle"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+          type="button"
+        >
+          {theme === "dark" ? <Moon size={16} /> : <Sun size={16} />}
+          <span>{theme === "dark" ? "暗色模式" : "亮色模式"}</span>
+        </button>
+
         <button
           aria-label={sidebarCollapsed ? "展开侧边栏" : "收起侧边栏"}
           className="sidebar-toggle"
@@ -829,26 +941,50 @@ function App() {
                       <div className="search-row">
                         <Search size={20} />
                         <input
+                          ref={searchInputRef}
                           aria-label="搜索插件"
                           onChange={(event) => setQuery(event.target.value)}
                           placeholder="搜索插件、分类或能力..."
                           type="search"
                           value={query}
                         />
+                        {!query && (
+                          <kbd className="search-shortcut" title="按 / 聚焦搜索">/</kbd>
+                        )}
                       </div>
                     </div>
                   </section>
 
                   <section className="plugins-panel" id="plugins">
-                    <div className="plugin-grid">
-                      {visiblePlugins.map((plugin) => (
-                        <PluginCard
-                          key={plugin.slug}
-                          onOpen={() => setSelectedPlugin(plugin)}
-                          plugin={plugin}
-                        />
-                      ))}
-                    </div>
+                    {visiblePlugins.length === 0 ? (
+                      <div className="empty-state">
+                        <Search size={40} strokeWidth={1.5} />
+                        <h3>没有找到匹配的插件</h3>
+                        <p>
+                          尝试更换关键词，或切换到「全部」分类浏览所有插件。
+                          {query && (
+                            <button
+                              className="empty-clear-btn"
+                              onClick={() => setQuery("")}
+                              type="button"
+                            >
+                              清除搜索
+                            </button>
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="plugin-grid">
+                        {visiblePlugins.map((plugin, index) => (
+                          <PluginCard
+                            key={plugin.slug}
+                            onOpen={() => setSelectedPlugin(plugin)}
+                            plugin={plugin}
+                            index={index}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </section>
                 </div>
               )}
@@ -1074,7 +1210,36 @@ function RecommendedSkills({ items }) {
   );
 }
 
-function PluginCard({ onOpen, plugin }) {
+function CopyableCode({ text }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="copyable-code">
+      <code>{text}</code>
+      <button
+        className={`copy-btn${copied ? " copied" : ""}`}
+        onClick={handleCopy}
+        title="复制提示词"
+        type="button"
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+      </button>
+    </div>
+  );
+}
+
+function PluginCard({ onOpen, plugin, index = 0 }) {
   const Icon = categoryIcons[plugin.category] || Sparkles;
   const isOfficial = plugin.marketplace?.startsWith("openai-");
 
@@ -1082,7 +1247,7 @@ function PluginCard({ onOpen, plugin }) {
     <button
       className="plugin-card"
       onClick={onOpen}
-      style={{ "--accent": plugin.brandColor }}
+      style={{ "--accent": plugin.brandColor, animationDelay: `${index * 40}ms` }}
       type="button"
     >
       {isOfficial ? (
@@ -1177,7 +1342,7 @@ function PluginDetail({ onClose, plugin }) {
           <p>{plugin.detailZh.value}</p>
         </div>
 
-        <div className="detail-section">
+          <div className="detail-section">
           <h3>核心使用场景</h3>
           <div className="scenario-list">
             {coreScenarios.map((scenario) => (
@@ -1185,7 +1350,7 @@ function PluginDetail({ onClose, plugin }) {
                 <h4>{scenario.title}</h4>
                 <div>
                   <span>你输入</span>
-                  <code>{scenario.prompt}</code>
+                  <CopyableCode text={scenario.prompt} />
                 </div>
                 <div>
                   <span>会得到</span>

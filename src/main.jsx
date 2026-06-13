@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import officialPlugins from "./data/officialPlugins.json";
 import workflowTemplates from "./data/workflowTemplates.json";
+import caseStudies from "./data/caseStudies.json";
+import faqData from "./data/faq.json";
 import "./styles.css";
 
 const categoryIcons = {
@@ -930,6 +932,24 @@ function App() {
               >
                 工作流模板
               </button>
+              <button
+                aria-selected={activeTab === "cases"}
+                className={activeTab === "cases" ? "active" : ""}
+                onClick={() => setActiveTab("cases")}
+                role="tab"
+                type="button"
+              >
+                实战案例
+              </button>
+              <button
+                aria-selected={activeTab === "faq"}
+                className={activeTab === "faq" ? "active" : ""}
+                onClick={() => setActiveTab("faq")}
+                role="tab"
+                type="button"
+              >
+                常见问题
+              </button>
             </div>
 
             <div className="tab-content">
@@ -953,6 +973,14 @@ function App() {
               ) : activeTab === "workflows" ? (
                 <div className="tab-pane" role="tabpanel">
                   <WorkflowTemplates />
+                </div>
+              ) : activeTab === "cases" ? (
+                <div className="tab-pane" role="tabpanel">
+                  <CaseStudies />
+                </div>
+              ) : activeTab === "faq" ? (
+                <div className="tab-pane" role="tabpanel">
+                  <FaqSection />
                 </div>
               ) : (
                 <div className="tab-pane plugins-tab-pane" role="tabpanel">
@@ -1616,6 +1644,271 @@ function WorkflowDetail({ onBack, template }) {
                 </div>
               )}
             </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const caseDifficultyColors = {
+  "初级": "diff-easy",
+  "中级": "diff-medium",
+  "高级": "diff-hard",
+};
+
+function CaseStudies() {
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [caseFilter, setCaseFilter] = useState("全部");
+
+  const allCategories = ["全部", ...new Set(caseStudies.map((c) => c.category))];
+
+  const filtered = caseFilter === "全部"
+    ? caseStudies
+    : caseStudies.filter((c) => c.category === caseFilter);
+
+  if (selectedCase) {
+    return (
+      <CaseStudyDetail
+        onBack={() => setSelectedCase(null)}
+        study={selectedCase}
+      />
+    );
+  }
+
+  return (
+    <section className="case-panel" aria-label="实战案例">
+      <div className="case-filters">
+        {allCategories.map((cat) => (
+          <button
+            className={caseFilter === cat ? "active" : ""}
+            key={cat}
+            onClick={() => setCaseFilter(cat)}
+            type="button"
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="case-grid">
+        {filtered.map((study, index) => (
+          <button
+            className="case-card"
+            key={study.id}
+            onClick={() => setSelectedCase(study)}
+            style={{ animationDelay: `${index * 50}ms` }}
+            type="button"
+          >
+            <div className="case-card-top">
+              <span className={`case-difficulty ${caseDifficultyColors[study.difficulty] || ""}`}>
+                {study.difficulty}
+              </span>
+              <span className="case-duration">
+                <Timer size={13} />
+                {study.duration}
+              </span>
+            </div>
+            <h3>{study.title}</h3>
+            <p className="case-subtitle">{study.subtitle}</p>
+            <p className="case-summary">{study.summary}</p>
+            <div className="case-card-tags">
+              {study.tags.slice(0, 4).map((tag) => (
+                <span key={tag}>
+                  <Tag size={11} />
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <div className="case-card-foot">
+              <span>{study.steps.length} 个阶段</span>
+              <span className="case-arrow">
+                查看详情
+                <ArrowUpRight size={14} />
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CaseStudyDetail({ onBack, study }) {
+  const [copiedPrompt, setCopiedPrompt] = useState(null);
+
+  const handleCopy = async (text, key) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedPrompt(key);
+      window.setTimeout(() => setCopiedPrompt(null), 1500);
+    } catch {
+      setCopiedPrompt(null);
+    }
+  };
+
+  return (
+    <section className="case-detail" aria-label={study.title}>
+      <button className="case-back" onClick={onBack} type="button">
+        ← 返回案例列表
+      </button>
+
+      <div className="case-detail-head">
+        <div className="case-detail-meta-row">
+          <span className={`case-difficulty ${caseDifficultyColors[study.difficulty] || ""}`}>
+            {study.difficulty}
+          </span>
+          <span className="case-duration">
+            <Timer size={13} />
+            {study.duration}
+          </span>
+          <span className="case-author">{study.author}</span>
+        </div>
+        <h2>{study.title}</h2>
+        <p className="case-detail-subtitle">{study.subtitle}</p>
+      </div>
+
+      <div className="case-detail-section">
+        <h3>项目背景</h3>
+        <p>{study.background}</p>
+      </div>
+
+      <div className="case-detail-section">
+        <h3>目标</h3>
+        <ul className="case-goals">
+          {study.goals.map((goal, i) => (
+            <li key={i}>{goal}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="case-detail-section">
+        <h3>技术栈</h3>
+        <div className="case-tech-stack">
+          {study.techStack.map((tech, i) => (
+            <span key={i}>{tech}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="case-detail-section">
+        <h3>实施过程</h3>
+        <div className="case-steps">
+          {study.steps.map((step, index) => (
+            <div className="case-step" key={index}>
+              <div className="case-step-num">{index + 1}</div>
+              <div className="case-step-content">
+                <div className="case-step-header">
+                  <h4>{step.name}</h4>
+                  <span className="case-step-duration">
+                    <Clock size={13} />
+                    {step.duration}
+                  </span>
+                </div>
+                <p>{step.content}</p>
+
+                {step.prompts && step.prompts.length > 0 && (
+                  <div className="case-step-prompts">
+                    <strong>使用的提示词</strong>
+                    {step.prompts.map((prompt, pi) => (
+                      <div className="case-prompt" key={pi}>
+                        <code>{prompt}</code>
+                        <button
+                          className={`copy-btn${copiedPrompt === `${index}-${pi}` ? " copied" : ""}`}
+                          onClick={() => handleCopy(prompt, `${index}-${pi}`)}
+                          title="复制提示词"
+                          type="button"
+                        >
+                          {copiedPrompt === `${index}-${pi}` ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {step.results && (
+                  <div className="case-step-result">
+                    <TrendingUp size={13} />
+                    <span>{step.results}</span>
+                  </div>
+                )}
+
+                {step.lessons && (
+                  <div className="case-step-tips">
+                    <Sparkles size={13} />
+                    <span>{step.lessons}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="case-detail-section">
+        <h3>成果</h3>
+        <div className="case-results">
+          <div className="case-metrics">
+            {study.results.metrics.map((metric, i) => (
+              <div className="case-metric" key={i}>{metric}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {study.results.userFeedback && study.results.userFeedback.length > 0 && (
+        <div className="case-detail-section">
+          <h3>用户反馈</h3>
+          <div className="case-feedback">
+            {study.results.userFeedback.map((fb, i) => (
+              <div className="case-feedback-item" key={i}>「{fb}」</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="case-detail-section">
+        <h3>经验总结</h3>
+        <ul className="case-lessons">
+          {study.lessons.map((lesson, i) => (
+            <li key={i}>{lesson}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function FaqSection() {
+  const [openId, setOpenId] = useState(null);
+
+  const toggle = (id) => {
+    setOpenId((prev) => (prev === id ? null : id));
+  };
+
+  return (
+    <section className="faq-panel" aria-label="常见问题">
+      <div className="faq-list">
+        {faqData.map((item, index) => (
+          <div
+            className={`faq-item${openId === item.id ? " open" : ""}`}
+            key={item.id}
+            style={{ animationDelay: `${index * 40}ms` }}
+          >
+            <button
+              className="faq-question"
+              onClick={() => toggle(item.id)}
+              aria-expanded={openId === item.id}
+              type="button"
+            >
+              <span>{item.question}</span>
+              <span className="faq-icon">{openId === item.id ? "−" : "+"}</span>
+            </button>
+            {openId === item.id && (
+              <div className="faq-answer">
+                <p>{item.answer}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>

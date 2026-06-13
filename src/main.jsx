@@ -1880,7 +1880,32 @@ function CaseStudyDetail({ onBack, study }) {
 }
 
 function FaqSection() {
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(faqData[0]?.id || null);
+
+  const faqGroups = [
+    {
+      title: "入门与配置",
+      description: "先确认这个知识库能做什么，以及哪些功能需要额外配置。",
+      ids: ["what-is-codex", "how-to-use", "need-api-key"],
+    },
+    {
+      title: "内容使用",
+      description: "了解插件、工作流、案例和 AI 分析之间的关系。",
+      ids: ["plugin-difference", "workflow-template", "case-study", "ai-analysis"],
+    },
+    {
+      title: "维护与部署",
+      description: "贡献内容、费用说明和部署自己的版本。",
+      ids: ["contribute", "pricing", "deploy"],
+    },
+  ];
+
+  const groupedFaq = faqGroups.map((group) => ({
+    ...group,
+    items: group.ids
+      .map((id) => faqData.find((item) => item.id === id))
+      .filter(Boolean),
+  }));
 
   const toggle = (id) => {
     setOpenId((prev) => (prev === id ? null : id));
@@ -1888,29 +1913,90 @@ function FaqSection() {
 
   return (
     <section className="faq-panel" aria-label="常见问题">
-      <div className="faq-list">
-        {faqData.map((item, index) => (
-          <div
-            className={`faq-item${openId === item.id ? " open" : ""}`}
-            key={item.id}
-            style={{ animationDelay: `${index * 40}ms` }}
-          >
-            <button
-              className="faq-question"
-              onClick={() => toggle(item.id)}
-              aria-expanded={openId === item.id}
-              type="button"
-            >
-              <span>{item.question}</span>
-              <span className="faq-icon">{openId === item.id ? "−" : "+"}</span>
-            </button>
-            {openId === item.id && (
-              <div className="faq-answer">
-                <p>{item.answer}</p>
-              </div>
-            )}
+      <div className="faq-hero">
+        <div className="faq-hero-copy">
+          <span className="faq-kicker">帮助中心</span>
+          <h2>常见问题</h2>
+          <p>
+            围绕 Codex Skills 的定位、使用方式、API Key、内容来源和部署方式做了集中整理。
+          </p>
+        </div>
+        <div className="faq-summary" aria-label="FAQ 摘要">
+          <div>
+            <strong>{faqData.length}</strong>
+            <span>个问题</span>
           </div>
-        ))}
+          <div>
+            <strong>{faqGroups.length}</strong>
+            <span>类主题</span>
+          </div>
+          <div>
+            <strong>本地</strong>
+            <span>保存配置</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="faq-layout">
+        <aside className="faq-aside" aria-label="快速查看">
+          <div className="faq-aside-card">
+            <MessageCircle size={20} />
+            <div>
+              <strong>建议阅读顺序</strong>
+              <p>第一次使用先看入门与配置，再按你的目标查看模板或案例。</p>
+            </div>
+          </div>
+          <div className="faq-topic-list">
+            {groupedFaq.map((group) => (
+              <a href={`#faq-${group.title}`} key={group.title}>
+                <span>{group.title}</span>
+                <strong>{group.items.length}</strong>
+              </a>
+            ))}
+          </div>
+        </aside>
+
+        <div className="faq-list">
+          {groupedFaq.map((group, groupIndex) => (
+            <div className="faq-group" id={`faq-${group.title}`} key={group.title}>
+              <div className="faq-group-head">
+                <span>{String(groupIndex + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3>{group.title}</h3>
+                  <p>{group.description}</p>
+                </div>
+              </div>
+
+              <div className="faq-items">
+                {group.items.map((item, index) => (
+                  <div
+                    className={`faq-item${openId === item.id ? " open" : ""}`}
+                    key={item.id}
+                    style={{ animationDelay: `${(groupIndex * 3 + index) * 40}ms` }}
+                  >
+                    <button
+                      className="faq-question"
+                      onClick={() => toggle(item.id)}
+                      aria-expanded={openId === item.id}
+                      aria-controls={`answer-${item.id}`}
+                      type="button"
+                    >
+                      <span>{item.question}</span>
+                      <span className="faq-icon" aria-hidden="true">
+                        {openId === item.id ? "−" : "+"}
+                      </span>
+                    </button>
+                    {openId === item.id && (
+                      <div className="faq-answer" id={`answer-${item.id}`}>
+                        <p>{item.answer}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
